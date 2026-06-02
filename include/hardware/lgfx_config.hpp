@@ -9,6 +9,9 @@
 class LGFX : public lgfx::LGFX_Device {
   lgfx::Bus_SPI _bus;
   lgfx::Panel_GC9A01 _panel;
+#if defined(BOARD_XIAO)
+  lgfx::Light_PWM _light;
+#endif
 
 public:
   LGFX() {
@@ -31,6 +34,18 @@ public:
       cfg.rgb_order = config::kDisplayRgbOrder;
       _panel.config(cfg);
     }
+#if defined(BOARD_XIAO)
+    {
+      // BLK wired to a GPIO so setBrightness() works (PWM dimming).
+      auto cfg = _light.config();
+      cfg.pin_bl = static_cast<int>(config::kDisplayPinBacklight);
+      cfg.invert = false;  // BLK active HIGH on these GC9A01 breakouts
+      cfg.freq = 12000;
+      cfg.pwm_channel = 0;  // LEDC channel 0 (valid 0-5 on ESP32-C3)
+      _light.config(cfg);
+      _panel.setLight(&_light);
+    }
+#endif
     setPanel(&_panel);
   }
 };

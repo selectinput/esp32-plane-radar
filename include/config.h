@@ -30,11 +30,23 @@ constexpr unsigned long kBootResetHoldMs = 3000UL;
 constexpr unsigned long kBootTapMinMs = 40UL;
 
 // --- Display: GC9A01 1.28" round 240×240 (SPI) ---
+// Pin mapping is board-specific; selected at build time via -DBOARD_XIAO /
+// -DBOARD_SUPERMINI (set per-env in platformio.ini).
+#if defined(BOARD_XIAO)
+// Seeed Studio XIAO ESP32-C3 (onboard BOOT button on GPIO 9)
+constexpr gpio_num_t kDisplayPinSclk = GPIO_NUM_8;        // SCL  (XIAO D8)
+constexpr gpio_num_t kDisplayPinMosi = GPIO_NUM_10;       // SDA  (XIAO D10)
+constexpr gpio_num_t kDisplayPinRst = GPIO_NUM_5;         // RES  (XIAO D3)
+constexpr gpio_num_t kDisplayPinDc = GPIO_NUM_3;          // DC   (XIAO D1)
+constexpr gpio_num_t kDisplayPinCs = GPIO_NUM_2;          // CS   (XIAO D0)
+constexpr gpio_num_t kDisplayPinBacklight = GPIO_NUM_4;   // BLK  (XIAO D2)
+#else  // BOARD_SUPERMINI (default)
 constexpr gpio_num_t kDisplayPinRst = GPIO_NUM_0;
 constexpr gpio_num_t kDisplayPinCs = GPIO_NUM_1;
 constexpr gpio_num_t kDisplayPinDc = GPIO_NUM_10;
 constexpr gpio_num_t kDisplayPinMosi = GPIO_NUM_3;  // display SDA
 constexpr gpio_num_t kDisplayPinSclk = GPIO_NUM_4;  // display SCL
+#endif
 
 constexpr int kDisplayWidth = 240;
 constexpr int kDisplayHeight = 240;
