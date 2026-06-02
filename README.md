@@ -4,7 +4,9 @@
 
 **3D printed case (STL + assembly):** [MakerWorld](https://makerworld.com/en/models/2872376-esp32-plane-radar-live-ads-b-on-a-round-display#profileId-3207083) · **Firmware:** [Releases](https://github.com/MatixYo/ESP32-Plane-Radar/releases)
 
-Firmware for an **ESP32-C3 Super Mini** and a **1.28″ round GC9A01** display (240×240). Shows a circular **ADS-B radar** around your configured location, with **WiFiManager** for first-time setup.
+Firmware for an **ESP32-C3** board (either an **ESP32-C3 Super Mini** or a **Seeed Studio XIAO ESP32-C3**) and a **1.28″ round GC9A01** display (240×240). Shows a circular **ADS-B radar** around your configured location, with **WiFiManager** for first-time setup.
+
+Pick your board with the matching PlatformIO env: `supermini` or `xiao` (pin mapping is selected automatically via build-time defines — see `include/config.h`).
 
 ## What it does
 
@@ -117,7 +119,9 @@ src/
   services/
 ```
 
-## Wiring (GC9A01 ↔ ESP32-C3 Super Mini)
+## Wiring
+
+### GC9A01 ↔ ESP32-C3 Super Mini (env `supermini`)
 
 | Display | ESP32-C3 |
 |---------|----------|
@@ -130,16 +134,34 @@ src/
 | SCL (SCLK) | GPIO **4** |
 | BOOT (user) | GPIO **9** |
 
+### GC9A01 ↔ Seeed XIAO ESP32-C3 (env `xiao`)
+
+Power the display from **3V3, not 5V**. The XIAO's **onboard BOOT button (GPIO 9)** is used for range cycling / Wi‑Fi reset — no external button needed.
+
+| Display | XIAO pin | GPIO |
+|---------|----------|------|
+| VIN | 3V3 | — |
+| GND | GND | — |
+| SCL (SCLK) | D8 | **8** |
+| SDA (MOSI) | D10 | **10** |
+| RES | D3 | **5** |
+| DC | D1 | **3** |
+| CS | D0 | **2** |
+| BLK (backlight) | D2 | **4** |
+
+BLK is driven by a GPIO (PWM), so brightness control works. If the screen is dark at full brightness, set `cfg.invert = true` in the `Light_PWM` block of `include/hardware/lgfx_config.hpp`.
+
 ## Build
 
 ```bash
-pio run -t upload
+pio run -t upload -e supermini   # ESP32-C3 Super Mini
+pio run -t upload -e xiao         # Seeed XIAO ESP32-C3
 pio device monitor
 ```
 
-- PlatformIO env: **`supermini`**
+- PlatformIO envs: **`supermini`** and **`xiao`** (choose with `-e`)
 - Serial: **115200** baud
-- USB CDC on boot enabled in `platformio.ini` for the Super Mini
+- USB CDC on boot enabled in `platformio.ini` for both boards
 
 ### Web-flashable release image
 
@@ -169,7 +191,7 @@ Put the board in download mode (hold **BOOT**, tap **RESET**), then flash with C
 
 | Workflow | When | Output |
 |----------|------|--------|
-| [Build](.github/workflows/build.yml) | Push / PR to `main` | Artifact `plane-radar-supermini` (merged + split `.bin` files, ~90 days) |
+| [Build](.github/workflows/build.yml) | Push / PR to `main` | Artifacts `plane-radar-supermini` and `plane-radar-xiao` (merged + split `.bin` files, ~90 days) |
 | [Release](.github/workflows/release.yml) | Git tag `v*` (e.g. `v1.0.0`) | GitHub Release asset `plane-radar-v1.0.0.bin` + `.sha256` |
 
 To ship a version users can download:
