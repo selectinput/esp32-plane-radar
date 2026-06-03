@@ -51,7 +51,9 @@ constexpr gpio_num_t kDisplayPinSclk = GPIO_NUM_4;  // display SCL
 constexpr int kDisplayWidth = 240;
 constexpr int kDisplayHeight = 240;
 
-constexpr uint32_t kDisplaySpiWriteHz = 40000000;
+// 80 MHz gives the render headroom for a smooth ~30 fps full-frame redraw.
+// If the panel shows noise/artifacts, drop back to 40000000.
+constexpr uint32_t kDisplaySpiWriteHz = 80000000;
 // GC9A01 modules often need invert + BGR for correct black/green output
 constexpr bool kDisplayInvert = true;
 constexpr bool kDisplayRgbOrder = true;
@@ -60,8 +62,11 @@ constexpr bool kDisplayRgbOrder = true;
 constexpr double kDefaultRadarLat = 52.3676;
 constexpr double kDefaultRadarLon = 4.9041;
 
-/** Poll adsb.fi (API public limit: 1 req/s). */
-constexpr unsigned long kAdsbFetchIntervalMs = 3000;
+/** Poll adsb.fi every 2 s (public limit is 1 req/s; 2 s leaves safe headroom).
+ *  Motion stays smooth between polls via dead-reckoning (see radarDisplayTick). */
+constexpr unsigned long kAdsbFetchIntervalMs = 2000;
+/** Radar interpolation/redraw rate while connected (frames per second). */
+constexpr int kRadarRenderFps = 30;
 /** Legacy scale unused — fetch uses radar::fetchRadiusKm() to screen edge. */
 constexpr float kAdsbFetchRadiusScale = 1.0f;
 /** false = hide aircraft with alt_baro "ground"; true = show them too. */

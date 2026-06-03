@@ -474,6 +474,37 @@ void sortBeyondDotsFarFirst(BeyondDotDrawItem* items, size_t count) {
   }
 }
 
+/** millis() of the last aircraft data refresh; 0 = no data yet. */
+unsigned long s_data_millis = 0;
+/** Cap dead-reckoning so targets don't fly off if data stalls (e.g. WiFi drop). */
+constexpr unsigned long kInterpMaxMs = 6000;
+
+float interpDtSeconds() {
+  if (s_data_millis == 0) {
+    return 0.0f;
+  }
+  unsigned long age = millis() - s_data_millis;
+  if (age > kInterpMaxMs) {
+    age = kInterpMaxMs;
+  }
+  return static_cast<float>(age) / 1000.0f;
+}
+
+/** Advance a plane along its ground track at gs for dt_s seconds (flat 111 km/°). */
+void deadReckon(const services::adsb::Aircraft& p, float dt_s, float* lat,
+                float* lon) {
+  *lat = p.lat;
+  *lon = p.lon;
+  if (dt_s <= 0.0f || p.gs_knots <= 0.0f) {
+    return;
+  }
+  constexpr float kDegToRad = 0.01745329252f;
+  const float dist_km = p.gs_knots * 1.852f * dt_s / 3600.0f;  // knots->km
+  const float tr = p.track_deg * kDegToRad;
+  *lat += (cosf(tr) * dist_km) / kKmPerDeg;  // north
+  *lon += (sinf(tr) * dist_km) / kKmPerDeg;  // east
+}
+
 void drawAircraft() {
   initLabelMetrics();
 
@@ -485,16 +516,22 @@ void drawAircraft() {
   size_t draw_count = 0;
   size_t dot_count = 0;
 
+  const float dt_s = interpDtSeconds();
+
   for (size_t i = 0; i < n; ++i) {
+    float ilat = 0.0f;
+    float ilon = 0.0f;
+    deadReckon(planes[i], dt_s, &ilat, &ilon);
+
     float dx_km = 0.0f;
     float dy_km = 0.0f;
     float dist_km = 0.0f;
-    offsetKmFromCenter(planes[i].lat, planes[i].lon, &dx_km, &dy_km, &dist_km);
+    offsetKmFromCenter(ilat, ilon, &dx_km, &dy_km, &dist_km);
 
     if (isInsideOuterRingKm(dist_km)) {
       int x = 0;
       int y = 0;
-      latLonToScreen(planes[i].lat, planes[i].lon, &x, &y);
+      latLonToScreen(ilat, ilon, &x, &y);
       items[draw_count].index = i;
       items[draw_count].x = x;
       items[draw_count].y = y;
@@ -505,8 +542,7 @@ void drawAircraft() {
 
     int dot_x = 0;
     int dot_y = 0;
-    if (!beyondRingEdgeDotFromLatLon(planes[i].lat, planes[i].lon, &dot_x,
-                                     &dot_y)) {
+    if (!beyondRingEdgeDotFromLatLon(ilat, ilon, &dot_x, &dot_y)) {
       continue;
     }
     dots[dot_count].x = dot_x;
@@ -689,6 +725,19 @@ void radarDisplayDraw() {
 }
 
 void radarDisplayRefreshAircraft() {
+  initPalette();
+  s_data_millis = millis();  // new data epoch; dead-reckoning restarts from here
+
+  if (s_bg_ready) {
+    blitBackgroundAndAircraft();
+    return;
+  }
+
+  radarDisplayDraw();
+}
+
+void radarDisplayTick() {
+  // Per-frame redraw at interpolated positions (no new data fetched).
   initPalette();
 
   if (s_bg_ready) {
